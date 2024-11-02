@@ -33,15 +33,18 @@ import {
   Legend,
 } from "chart.js";
 
+// Import the Gas Price Estimator
+import GasPriceEstimator from './GasPriceEstimator'; // Adjust the import path as necessary
+
 // Import asset icons
-import adaIcon from "assets/img/icons/ada.png"; // ADA Icon
-import avalancheIcon from "assets/img/icons/avalanche.png"; // Avalanche Icon
-import btcIcon from "assets/img/icons/btc.png"; // BTC Icon
-import usdtIcon from "assets/img/icons/usdt.png"; // USDT Icon
-import bscIcon from "assets/img/icons/bsc.png"; // BSC Icon
-import maticIcon from "assets/img/icons/matic.png"; // MATIC Icon
-import ethIcon from "assets/img/icons/eth.png"; // ETH Icon
-import pyusdIcon from "assets/img/icons/pyusd.png"; // PYUSD Icon
+import adaIcon from "assets/img/icons/ada.png";
+import avalancheIcon from "assets/img/icons/avalanche.png";
+import btcIcon from "assets/img/icons/btc.png";
+import usdtIcon from "assets/img/icons/usdt.png";
+import bscIcon from "assets/img/icons/bsc.png";
+import maticIcon from "assets/img/icons/matic.png";
+import ethIcon from "assets/img/icons/eth.png";
+import pyusdIcon from "assets/img/icons/pyusd.png";
 
 // Register the components
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
@@ -66,18 +69,20 @@ const TradeAssetsOverview = () => {
   const [loading, setLoading] = useState(false);
   const [priceHistory, setPriceHistory] = useState([]);
   const [portfolio, setPortfolio] = useState({
-    btc: 1, // Start with 1 BTC
-    eth: 5, // Start with 5 ETH
-    ada: 100, // Start with 100 ADA
-    avax: 50, // Start with 50 AVAX
-    usdt: 1000, // Start with 1000 USDT
-    bsc: 2, // Start with 2 BSC
-    matic: 200, // Start with 200 MATIC
-    pyusd: 500, // Start with 500 PYUSD
+    btc: 1,
+    eth: 5,
+    ada: 100,
+    avax: 50,
+    usdt: 1000,
+    bsc: 2,
+    matic: 200,
+    pyusd: 500,
   });
 
   const { isOpen: isTradeOpen, onOpen: onTradeOpen, onClose: onTradeClose } = useDisclosure();
   const toast = useToast();
+  
+  const [gasPrice, setGasPrice] = useState(null); // State for gas price
 
   useEffect(() => {
     const simulatedHistoricalData = generateHistoricalPriceData(selectedAsset.name);
@@ -90,6 +95,7 @@ const TradeAssetsOverview = () => {
       const totalCost = (selectedAsset.price * amount) + fee;
 
       // Show confirmation modal
+      setGasPrice(10); // Set the gas price here; in a real app, this should come from GasPriceEstimator
       onTradeOpen();
     } else {
       setTradeStatus("Please enter a valid amount.");
@@ -99,7 +105,7 @@ const TradeAssetsOverview = () => {
   const confirmTrade = () => {
     setLoading(true);
     
-    const tradeAmount = parseFloat(amount); // Ensure the amount is a number
+    const tradeAmount = parseFloat(amount);
     const newTrade = {
       date: new Date().toLocaleString(),
       assetName: selectedAsset.name,
@@ -109,16 +115,13 @@ const TradeAssetsOverview = () => {
       fee: calculateTransactionFee(selectedAsset.price, tradeAmount),
     };
 
-    // Update portfolio based on trade type
     const assetKey = selectedAsset.name.split(' ')[0].toLowerCase();
     if (tradeType === "Buy") {
-      // If buying, increase the amount in the portfolio
       setPortfolio((prevPortfolio) => ({
         ...prevPortfolio,
         [assetKey]: (prevPortfolio[assetKey] || 0) + tradeAmount,
       }));
     } else {
-      // If selling, check if there are enough assets
       const currentAmount = portfolio[assetKey] || 0;
       if (currentAmount >= tradeAmount) {
         setPortfolio((prevPortfolio) => ({
@@ -128,11 +131,10 @@ const TradeAssetsOverview = () => {
       } else {
         setTradeStatus("Insufficient quantity to sell.");
         setLoading(false);
-        return; // Exit if there are not enough assets to sell
+        return;
       }
     }
 
-    // Update trade history
     setTradeHistory((prevTrades) => [...prevTrades, newTrade]);
     setAmount("");
     setTradeStatus(`Successfully ${tradeType.toLowerCase()}ed ${tradeAmount} ${selectedAsset.name}.`);
@@ -176,12 +178,15 @@ const TradeAssetsOverview = () => {
   };
 
   return (
-    <Box p={5}>
+    <Box p={5} >
       <Heading mb={5}>Trade Assets Overview</Heading>
+
+      {/* Add the Gas Price Estimator Component */}
+      <GasPriceEstimator setGasPrice={setGasPrice} /> {/* Pass setGasPrice to GasPriceEstimator */}
 
       <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
         {/* User Portfolio Section */}
-        <Card mb={5}>
+        <Card mt={5}>
           <Box p={5}>
             <Heading size="md" mb={3}>Your Portfolio</Heading>
             <Divider mb={3} />
@@ -196,7 +201,7 @@ const TradeAssetsOverview = () => {
                         <Text>{`${asset.name}: ${value}`}</Text>
                       </>
                     ) : (
-                      <Text>{`${key.toUpperCase()}: ${value}`}</Text> // Fallback for missing asset
+                      <Text>{`${key.toUpperCase()}: ${value}`}</Text>
                     )}
                   </Flex>
                 );
@@ -205,7 +210,7 @@ const TradeAssetsOverview = () => {
           </Box>
         </Card>
 
-        <Card>
+        <Card mt={5}>
           <Box p={5}>
             <Flex alignItems="center" mb={4}>
               <Select
@@ -218,30 +223,28 @@ const TradeAssetsOverview = () => {
                 <option value="Sell">Sell</option>
               </Select>
               <Select
-                placeholder="Select Asset"
-                value={selectedAsset.name}
-                onChange={(e) => setSelectedAsset(assets.find(asset => asset.name === e.target.value))}
-                width="200px"
+                placeholder="Select asset"
+                onChange={(e) => setSelectedAsset(assets[e.target.value])}
               >
-                {assets.map((asset) => (
-                  <option key={asset.name} value={asset.name}>
+                {assets.map((asset, index) => (
+                  <option key={index} value={index}>
                     {asset.name}
                   </option>
                 ))}
               </Select>
             </Flex>
-
             <Input
               placeholder="Amount"
+              type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              mb={3}
+              mb={4}
             />
-            <Button colorScheme="blue" onClick={handleTrade} isLoading={loading}>
-              Confirm Trade
+            <Button colorScheme="teal" onClick={handleTrade}>
+              {tradeType}
             </Button>
             {tradeStatus && (
-              <Alert status={tradeStatus.includes("Insufficient") ? "error" : "success"} mt={4}>
+              <Alert status="info" mt={4}>
                 <AlertIcon />
                 {tradeStatus}
               </Alert>
@@ -250,49 +253,50 @@ const TradeAssetsOverview = () => {
         </Card>
       </SimpleGrid>
 
-      {/* Price History Chart */}
-      <Card mt={5}>
-        <Box p={5}>
-          <Heading size="md" mb={3}>Price History</Heading>
-          <Divider mb={3} />
-          <Line data={chartData} />
-        </Box>
-      </Card>
-
-      {/* Confirmation Modal */}
-      <Modal isOpen={isTradeOpen} onClose={onTradeClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Confirm Trade</ModalHeader>
-          <ModalBody>
-            <Text>Are you sure you want to {tradeType.toLowerCase()} {amount} of {selectedAsset.name}?</Text>
-            <Text mt={2}>Total cost (including fees): ${((selectedAsset.price * amount) + calculateTransactionFee(selectedAsset.price, amount)).toFixed(2)}</Text>
-          </ModalBody>
-          <ModalFooter>
-            <Button colorScheme="blue" mr={3} onClick={confirmTrade}>
-              Yes
-            </Button>
-            <Button onClick={onTradeClose}>No</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
       {/* Trade History Section */}
       <Card mt={5}>
         <Box p={5}>
           <Heading size="md" mb={3}>Trade History</Heading>
           <Divider mb={3} />
-          <SimpleGrid columns={1} spacing={4}>
-            {tradeHistory.length === 0 ? (
-              <Text>No trades made yet.</Text>
-            ) : (
-              tradeHistory.map((trade, index) => (
-                <Box key={index} p={3} borderWidth="1px" borderRadius="md">
-                  <Text><strong>{trade.type}</strong> {trade.amount} of {trade.assetName} at ${trade.price.toFixed(2)} on {trade.date}. Fee: ${trade.fee.toFixed(2)}</Text>
-                </Box>
-              ))
+          {tradeHistory.length === 0 ? (
+            <Text>No trades executed yet.</Text>
+          ) : (
+            tradeHistory.map((trade, index) => (
+              <Text key={index}>
+                {trade.date}: {trade.type} {trade.amount} {trade.assetName} at ${trade.price.toFixed(2)} (Fee: ${trade.fee.toFixed(2)})
+              </Text>
+            ))
+          )}
+        </Box>
+      </Card>
+
+      {/* Trade Confirmation Modal */}
+      <Modal isOpen={isTradeOpen} onClose={onTradeClose}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Confirm Trade</ModalHeader>
+          <ModalBody>
+            <Text>Are you sure you want to {tradeType} {amount} {selectedAsset.name}?</Text>
+            {gasPrice && (
+              <Text mt={2}>Estimated Gas Price: ${gasPrice}</Text> // Show gas price
             )}
-          </SimpleGrid>
+          </ModalBody>
+          <ModalFooter>
+            <Button colorScheme="blue" onClick={confirmTrade} isLoading={loading}>
+              Confirm
+            </Button>
+            <Button onClick={onTradeClose} ml={3}>
+              Cancel
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Chart Section */}
+      <Card mt={5}>
+        <Box p={5}>
+          <Heading size="md" mb={3}>Price History</Heading>
+          <Line data={chartData} />
         </Box>
       </Card>
     </Box>
