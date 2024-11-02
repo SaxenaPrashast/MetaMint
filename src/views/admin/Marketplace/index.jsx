@@ -5,7 +5,7 @@ import React from "react";
 export default function Settings() {
   // Chakra Color Mode
   return (
-<SimpleGrid >
+<SimpleGrid mt={93}>
   <MarketplaceOverview />
 
 </SimpleGrid>
