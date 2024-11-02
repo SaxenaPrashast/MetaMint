@@ -32,11 +32,9 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-
-// Import the Gas Price Estimator
 import GasPriceEstimator from './GasPriceEstimator'; // Adjust the import path as necessary
 
-// Import asset icons
+// Asset icons import
 import adaIcon from "assets/img/icons/ada.png";
 import avalancheIcon from "assets/img/icons/avalanche.png";
 import btcIcon from "assets/img/icons/btc.png";
@@ -46,18 +44,17 @@ import maticIcon from "assets/img/icons/matic.png";
 import ethIcon from "assets/img/icons/eth.png";
 import pyusdIcon from "assets/img/icons/pyusd.png";
 
-// Register the components
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
 
 const assets = [
-  { name: "Bitcoin (BTC)", icon: btcIcon, price: 30000 },
-  { name: "Ethereum (ETH)", icon: ethIcon, price: 2000 },
-  { name: "Cardano (ADA)", icon: adaIcon, price: 0.5 },
-  { name: "Avalanche (AVAX)", icon: avalancheIcon, price: 15 },
-  { name: "Tether (USDT)", icon: usdtIcon, price: 1 },
-  { name: "Binance Smart Chain (BSC)", icon: bscIcon, price: 300 },
-  { name: "Polygon (MATIC)", icon: maticIcon, price: 1.5 },
-  { name: "PyuDollar (PYUSD)", icon: pyusdIcon, price: 1 },
+  { name: "Bitcoin (BTC)", icon: btcIcon, address: "0x0000000000000000000000000000000000000000000" }, // BTC doesn't have a contract address
+  { name: "Ethereum (ETH)", icon: ethIcon, address: "0x0000000000000000000000000000000000000" }, // ETH doesn't have a contract address
+  { name: "Cardano (ADA)", icon: adaIcon, address: "0x0000000000000000000000000000000000000000" }, // ADA doesn't have a contract address
+  { name: "Avalanche (AVAX)", icon: avalancheIcon, address: "0x1ce0c2827e2ef14d5c4f29a091d735a204794041 " }, // AVAX contract address
+  { name: "Tether (USDT)", icon: usdtIcon, address: "0xdac17f958d2ee523a2206206994597c13d831ec7" }, // USDT contract address on Ethereum
+  { name: "Binance Smart Chain (BSC)", icon: bscIcon, address: "0x0000000000000000000000000000000000000000" }, // BSC doesn't have a contract address
+  { name: "Polygon (MATIC)", icon: maticIcon, address: "0x0000000000000000000000000000000000000000" }, // MATIC doesn't have a contract address
+  { name: "PyuDollar (PYUSD)", icon: pyusdIcon, address: "0x0000000000000000000000000000000000000000" }, // Replace with actual address if available
 ];
 
 const TradeAssetsOverview = () => {
@@ -78,16 +75,40 @@ const TradeAssetsOverview = () => {
     matic: 200,
     pyusd: 500,
   });
+  const [tokenPriceUSD, setTokenPriceUSD] = useState(null); // State for token price in USD
+  const [fetchingPrice, setFetchingPrice] = useState(true); // State for fetching price loading
 
   const { isOpen: isTradeOpen, onOpen: onTradeOpen, onClose: onTradeClose } = useDisclosure();
   const toast = useToast();
-  
   const [gasPrice, setGasPrice] = useState(null); // State for gas price
 
   useEffect(() => {
     const simulatedHistoricalData = generateHistoricalPriceData(selectedAsset.name);
     setPriceHistory(simulatedHistoricalData);
+    fetchTokenPrice(selectedAsset.address);
   }, [selectedAsset]);
+
+  const fetchTokenPrice = async (tokenAddress) => {
+    const tokenPriceBaseUrl = 'https://api.odos.xyz/pricing/token';
+    const chainId = 1; // Replace with appropriate chain ID
+
+    try {
+      const response = await fetch(`${tokenPriceBaseUrl}/${chainId}/${tokenAddress}`);
+      if (response.status === 200) {
+        const data = await response.json();
+        setTokenPriceUSD(data.price); // Adjust based on the API response structure
+        setFetchingPrice(false); // Stop loading
+      } else {
+        console.error('Error fetching token price:', response);
+        setTokenPriceUSD(null);
+        setFetchingPrice(false); // Stop loading
+      }
+    } catch (error) {
+      console.error('Error fetching token price:', error);
+      setTokenPriceUSD(null);
+      setFetchingPrice(false); // Stop loading
+    }
+  };
 
   const handleTrade = () => {
     if (amount && selectedAsset) {
@@ -111,8 +132,8 @@ const TradeAssetsOverview = () => {
       assetName: selectedAsset.name,
       type: tradeType,
       amount: tradeAmount,
-      price: selectedAsset.price,
-      fee: calculateTransactionFee(selectedAsset.price, tradeAmount),
+      price: tokenPriceUSD, // Use the fetched token price in USD
+      fee: calculateTransactionFee(tokenPriceUSD, tradeAmount),
     };
 
     const assetKey = selectedAsset.name.split(' ')[0].toLowerCase();
@@ -178,15 +199,13 @@ const TradeAssetsOverview = () => {
   };
 
   return (
-    <Box p={5} >
+    <Box p={5}>
       <Heading mb={5}>Trade Assets Overview</Heading>
 
-      {/* Add the Gas Price Estimator Component */}
-      <GasPriceEstimator setGasPrice={setGasPrice} /> {/* Pass setGasPrice to GasPriceEstimator */}
+      <GasPriceEstimator setGasPrice={setGasPrice} />
 
       <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-        {/* User Portfolio Section */}
-        <Card mt={5}>
+      <Card mt={5}>
           <Box p={5}>
             <Heading size="md" mb={3}>Your Portfolio</Heading>
             <Divider mb={3} />
@@ -212,27 +231,19 @@ const TradeAssetsOverview = () => {
 
         <Card mt={5}>
           <Box p={5}>
-            <Flex alignItems="center" mb={4}>
-              <Select
-                value={tradeType}
-                onChange={(e) => setTradeType(e.target.value)}
-                width="150px"
-                mr={2}
-              >
-                <option value="Buy">Buy</option>
-                <option value="Sell">Sell</option>
-              </Select>
-              <Select
-                placeholder="Select asset"
-                onChange={(e) => setSelectedAsset(assets[e.target.value])}
-              >
-                {assets.map((asset, index) => (
-                  <option key={index} value={index}>
-                    {asset.name}
-                  </option>
-                ))}
-              </Select>
-            </Flex>
+            <Heading size="md" mb={3}>Trade</Heading>
+            <Divider mb={3} />
+            <Select
+              value={assets.findIndex(asset => asset.name === selectedAsset.name)}
+              onChange={(e) => setSelectedAsset(assets[e.target.value])}
+              mb={4}
+            >
+              {assets.map((asset, index) => (
+                <option key={index} value={index}>
+                  {asset.name}
+                </option>
+              ))}
+            </Select>
             <Input
               placeholder="Amount"
               type="number"
@@ -248,6 +259,15 @@ const TradeAssetsOverview = () => {
                 <AlertIcon />
                 {tradeStatus}
               </Alert>
+            )}
+            {fetchingPrice ? ( // Display loading state for price
+              <Text mt={4} fontSize="lg">Current Price: Loading...</Text>
+            ) : tokenPriceUSD ? ( // Display the token price in USD
+              <Text mt={4} fontSize="lg">
+                Current Price: ${tokenPriceUSD.toFixed(2)} USD
+              </Text>
+            ) : (
+              <Text mt={4} fontSize="lg" color="red.500">Error fetching price</Text>
             )}
           </Box>
         </Card>
@@ -278,7 +298,14 @@ const TradeAssetsOverview = () => {
           <ModalBody>
             <Text>Are you sure you want to {tradeType} {amount} {selectedAsset.name}?</Text>
             {gasPrice && (
-              <Text mt={2}>Estimated Gas Price: ${gasPrice}</Text> // Show gas price
+              <Text mt={2}>Estimated Gas Price: ${gasPrice}</Text>
+            )}
+            {fetchingPrice ? ( // Display loading state in the modal as well
+              <Text mt={2}>Current Price: Loading...</Text>
+            ) : tokenPriceUSD ? ( // Show current token price in USD
+              <Text mt={2}>Current Price: ${tokenPriceUSD.toFixed(2)} USD</Text>
+            ) : (
+              <Text mt={2} color="red.500">Error fetching price</Text>
             )}
           </ModalBody>
           <ModalFooter>
