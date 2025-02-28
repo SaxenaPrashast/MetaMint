@@ -1,0 +1,23 @@
+[
+    {
+      "id": 1,
+      "title": "How to optimize React performance?",
+      "content": "What are some best practices to optimize React applications?",
+      "user": "John Doe",
+      "avatar": "https://i.pravatar.cc/50?img=1",
+      "date": "Feb 27, 2025",
+      "replies": 12,
+      "status": "Open"
+    },
+    {
+      "id": 2,
+      "title": "Best UI libraries for Chakra UI?",
+      "content": "What are the best component libraries that work well with Chakra UI?",
+      "user": "Alice Smith",
+      "avatar": "https://i.pravatar.cc/50?img=2",
+      "date": "Feb 26, 2025",
+      "replies": 8,
+      "status": "Closed"
+    }
+  ]
+  

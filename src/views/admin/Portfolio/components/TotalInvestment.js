@@ -1,5 +1,5 @@
-import React from 'react';
-import { Box, Flex, Text, Image, VStack, Tooltip, Progress } from '@chakra-ui/react';
+import React, { useEffect, useState } from 'react';
+import { Box, Flex, Text, Image, VStack, Tooltip, Progress, Spinner } from '@chakra-ui/react';
 import Card from "components/card/Card";
 
 // Import currency icons
@@ -9,78 +9,82 @@ import ethIcon from "assets/img/icons/eth.png";
 import usdtIcon from "assets/img/icons/usdt.png";
 import pyusdIcon from "assets/img/icons/pyusd.png";
 
-// Sample data for demonstration
-const investmentData = [
-  { id: 1, name: "PYUSD", value: 15000, displayValue: "$15,000", icon: pyusdIcon },
-  { id: 2, name: "BTC", value: 10000, displayValue: "0.35 BTC", icon: btcIcon },
-  { id: 3, name: "ETH", value: 7000, displayValue: "2.1 ETH", icon: ethIcon },
-  { id: 4, name: "USDT", value: 3000, displayValue: "$3,000", icon: usdtIcon },
-  { id: 5, name: "USD", value: 8000, displayValue: "$8,000", icon: usdIcon },
-];
+const cryptoIcons = {
+  USD: usdIcon,
+  BTC: btcIcon,
+  ETH: ethIcon,
+  USDT: usdtIcon,
+  PYUSD: pyusdIcon,
+};
 
 const TotalInvestment = ({ totalBusinesses }) => {
-  // Calculate total value
-  const totalInvestmentValue = investmentData.reduce((acc, asset) => acc + asset.value, 0);
+  const [cryptoData, setCryptoData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCryptoPrices = async () => {
+      try {
+        const response = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,tether,paypal-usd,usd&vs_currencies=usd");
+        const data = await response.json();
+
+        setCryptoData({
+          PYUSD: data["paypal-usd"].usd,
+          BTC: data.bitcoin.usd,
+          ETH: data.ethereum.usd,
+          USDT: data.tether.usd,
+          USD: 1, // USD remains static
+        });
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching crypto prices:", error);
+        setLoading(false);
+      }
+    };
+    fetchCryptoPrices();
+    const interval = setInterval(fetchCryptoPrices, 60000); // Refresh every minute
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading) {
+    return <Spinner size="xl" />;
+  }
+
+  const totalInvestmentValue = Object.values(cryptoData).reduce((acc, val) => acc + val, 0);
 
   return (
     <Card boxShadow="lg" p={6} width="740px" height="650px">
       <VStack align="start" spacing={6}>
-        {/* Total Number of Businesses */}
         <Box mb={4}>
-          <Text fontSize="xl" fontWeight="bold" color="blue.700">
-            Total Number of Businesses
-          </Text>
-          <Text fontSize="3xl" color="blue.500" fontWeight="extrabold">
-            {totalBusinesses} 7
-          </Text>
+          <Text fontSize="xl" fontWeight="bold" color="blue.700">Total Number of Businesses</Text>
+          <Text fontSize="3xl" color="blue.500" fontWeight="extrabold">{totalBusinesses}</Text>
         </Box>
-
-        {/* Total Investment Value per Asset */}
         <Box w="100%">
-          <Text fontSize="xl" fontWeight="bold" color="green.700" mb={2}>
-            Total Investment Value
-          </Text>
+          <Text fontSize="xl" fontWeight="bold" color="green.700" mb={2}>Total Investment Value</Text>
           <Flex direction="column" gap={4}>
-            {investmentData.map((asset) => {
-              // Calculate asset's percentage of total investment
-              const assetPercentage = ((asset.value / totalInvestmentValue) * 100).toFixed(1);
+            {Object.entries(cryptoData).map(([key, value]) => {
+              const assetPercentage = ((value / totalInvestmentValue) * 100).toFixed(1);
               return (
-                <Flex key={asset.id} alignItems="center" justifyContent="space-between" w="100%">
+                <Flex key={key} alignItems="center" justifyContent="space-between" w="100%">
                   <Flex alignItems="center" gap={3}>
-                    <Image src={asset.icon} alt={asset.name} boxSize="35px" />
+                    <Image src={cryptoIcons[key]} alt={key} boxSize="35px" />
                     <Box>
-                      <Tooltip label={`Current Value: ${asset.displayValue}`} hasArrow placement="top">
-                        <Text fontWeight="semibold" fontSize="lg" color="gray.700">
-                          {asset.name}
-                        </Text>
+                      <Tooltip label={`Current Value: $${value.toLocaleString()}`} hasArrow placement="top">
+                        <Text fontWeight="semibold" fontSize="lg" color="gray.700">{key}</Text>
                       </Tooltip>
                       <Text fontSize="sm" color="gray.500">Portfolio: {assetPercentage}%</Text>
                     </Box>
                   </Flex>
                   <Flex flexDirection="column" align="end">
-                    <Text color="gray.600" fontSize="lg" fontWeight="bold">
-                      {asset.displayValue}
-                    </Text>
-                    <Progress
-                      value={assetPercentage}
-                      size="sm"
-                      width="100px"
-                      colorScheme="green"
-                      borderRadius="md"
-                    />
+                    <Text color="gray.600" fontSize="lg" fontWeight="bold">${value.toLocaleString()}</Text>
+                    <Progress value={assetPercentage} size="sm" width="100px" colorScheme="green" borderRadius="md" />
                   </Flex>
                 </Flex>
               );
             })}
           </Flex>
-          {/* Total Value Display */}
           <Box mt={6} textAlign="center">
-            <Text fontSize="lg" color="gray.600">
-              Total Investment Value
-            </Text>
-            <Text fontSize="2xl" color="green.600" fontWeight="extrabold">
-              ${totalInvestmentValue.toLocaleString()}
-            </Text>
+            <Text fontSize="lg" color="gray.600">Total Investment Value</Text>
+            <Text fontSize="2xl" color="green.600" fontWeight="extrabold">${totalInvestmentValue.toLocaleString()}</Text>
           </Box>
         </Box>
       </VStack>

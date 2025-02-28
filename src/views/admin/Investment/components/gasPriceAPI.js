@@ -1,15 +1,32 @@
 // utils/gasPriceAPI.js
-export const fetchGasPrices = async (chainId = 1) => {
-  const response = await fetch(`https://api.blocknative.com/gasprices/blockprices?chainid=${chainId}`, {
-      headers: {
-          Authorization: 'afd2dd34-c710-401e-b0a6-3c9a4040f202', // Replace with your actual API key
-      },
-  });
+const ETHERSCAN_API_KEY = process.env.EYXCWBZE645R2XSF5DDKGBQJCYHPYHVXST; // Use an environment variable
 
-  if (!response.ok) {
-      throw new Error('Failed to fetch gas prices');
+export const fetchGasPrices = async () => {
+  if (!ETHERSCAN_API_KEY) {
+    console.error("Etherscan API Key is missing!");
+    return null;
   }
-  
-  const data = await response.json();
-  return data;
+
+  const url = `https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=${ETHERSCAN_API_KEY}`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error("Failed to fetch gas prices");
+    }
+    const data = await response.json();
+
+    if (data.status !== "1") {
+      throw new Error("Invalid response from Etherscan");
+    }
+
+    return {
+      SafeGasPrice: data.result.SafeGasPrice,
+      ProposeGasPrice: data.result.ProposeGasPrice,
+      FastGasPrice: data.result.FastGasPrice,
+    };
+  } catch (error) {
+    console.error("Error fetching gas prices:", error);
+    return null;
+  }
 };
